@@ -8,7 +8,7 @@ In a simple and easy manner, it runs an `asyncio` event loop in a separate threa
 pip install asyncloop
 ```
 
-## Get started
+## Getting started
 ```python
 import asyncio as aio
 
