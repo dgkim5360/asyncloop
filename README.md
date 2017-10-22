@@ -3,12 +3,12 @@
 
 In a simple and easy manner, it runs an `asyncio` event loop in a separate thread and drives native coroutines within the loop.
 
-# Installation
+## Installation
 ```
 pip install asyncloop
 ```
 
-# Get started
+## Get started
 ```python
 import asyncio as aio
 
