@@ -51,4 +51,6 @@ aloop.stop()  # <AsyncLoop(Thread-##, stopped ##########)>
 ```
 So far, that's all.
 
-`submit_job`, which takes a job as a native coroutine and callback, returns a `concurrent.futures.Future` object. Also you may use `submit_jobs` with an iterable of coroutines and then it returns a list of `Future`s.
+`submit_job`, which takes a job as a native coroutine and callback, returns a `concurrent.futures.Future` object.
+
+Also you may use `submit_jobs` with an iterable of coroutines and then it returns a list of `Future`s.
