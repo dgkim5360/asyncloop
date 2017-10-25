@@ -29,8 +29,8 @@ class AsyncLoop(threading.Thread):
 
     def submit_job(self, job_coro, callback=None):
         """Initialize a job, which is a coroutine with an optional callback"""
-        if not inspect.iscoroutine(job_coro) and not aio.iscoroutine(job_coro):
-            raise TypeError('A coroutine object is required')
+        # if not inspect.iscoroutine(job_coro) and not aio.iscoroutine(job_coro):
+        #     raise TypeError('A coroutine object is required')
         fut = aio.run_coroutine_threadsafe(
             job_coro,
             loop=self._event_loop,
