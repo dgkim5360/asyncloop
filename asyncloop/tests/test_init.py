@@ -51,15 +51,15 @@ class TestBasic(unittest.TestCase):
         self.async_loop.stop()
         time.sleep(.01)  # give time to stop the thread
 
-    def test_async_loop_must_have_an_event_loop_as_attribute(self):
+    def test_asyncloop_must_have_an_event_loop_as_attribute(self):
         self.assertTrue(hasattr(self.async_loop, '_event_loop'))
         self.assertIsInstance(self.async_loop._event_loop,
                               aio.AbstractEventLoop)
 
-    def test_async_loop_event_loop_must_be_running(self):
+    def test_asyncloop_event_loop_must_be_running(self):
         self.assertTrue(self.async_loop._event_loop.is_running())
 
-    def test_async_loop_can_submit_a_job(self):
+    def test_asyncloop_can_submit_a_job(self):
         fut = self.async_loop.submit_job(job_to_wait(1))
         self.assertIsInstance(fut, concurrent.futures.Future)
         self.assertEqual(fut._state, 'PENDING')
@@ -67,7 +67,7 @@ class TestBasic(unittest.TestCase):
         self.assertEqual(fut._state, 'FINISHED')
         self.assertEqual(fut.result(), 1)
 
-    def test_async_loop_can_submit_two_jobs(self):
+    def test_asyncloop_can_submit_two_jobs(self):
         future1 = self.async_loop.submit_job(job_to_wait(1))
         future2 = self.async_loop.submit_job(job_to_wait(2))
 
@@ -84,11 +84,11 @@ class TestBasic(unittest.TestCase):
         self.assertTrue(future2.done())
         self.assertEqual(future2.result(), 2)
 
-    def test_async_loop_can_submit_a_job_with_a_callback(self):
+    def test_asyncloop_can_submit_a_job_with_a_callback(self):
         self.async_loop.submit_job(job_to_wait(1), callback)
         time.sleep(1.1)
 
-    def test_async_loop_can_cancel_a_job(self):
+    def test_asyncloop_can_cancel_a_job(self):
         fut = self.async_loop.submit_job(job_to_wait(60), callback)
 
         self.assertFalse(fut.done())
@@ -96,7 +96,7 @@ class TestBasic(unittest.TestCase):
         time.sleep(.1)
         self.assertTrue(fut.cancelled())
 
-    def test_async_loop_can_submit_jobs(self):
+    def test_asyncloop_can_submit_jobs(self):
         jobs = (job_to_wait(i*.5) for i in range(1, 5))
         futs = self.async_loop.submit_jobs(jobs, callback)
 
