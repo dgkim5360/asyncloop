@@ -1,11 +1,16 @@
 # asyncloop
 *A Celery-like event loop with `asyncio` and no dependencies*
 
-In a simple and easy manner, it runs an `asyncio` event loop in a separate thread and drives native coroutines within the loop.
+In a simple and easy manner, it runs an `asyncio` event loop in a separate thread, drives native coroutines within the loop, and then returns the future.
+
+## Dependency
+`asyncloop` requires Python 3.5+.
 
 ## Installation
 ```
-pip install asyncloop
+.$ git clone https://github.com/dgkim5360/asyncloop.git
+.$ cd asnycloop
+./asyncloop$ python setup.py install
 ```
 
 ## Getting started
