@@ -1,100 +1,155 @@
-import asyncio as aio
+import asyncio
+import collections
+import concurrent
+import pytest
 import time
 import types
-import unittest
 
-from asyncloop import AsyncLoop
-
-
-class TestAsyncLoop(unittest.TestCase):
-    """Detailed tests for AsyncLoop"""
-    def setUp(self):
-        self.asyncloop = AsyncLoop()
-        self.asyncloop.start()
-
-    def tearDown(self):
-        self.asyncloop.stop()
-
-    def test_asyncloop_must_warn_if_it_destoryes_without_stop(self):
-        """EMPTY on purpose: to avoid <CTRL-C> escaping"""
-
-    def test_asyncloop_should_raise_if_job_is_not_suitable(self):
-        """Tests for constant, plain function"""
-        def plain_function():
-            return 'hello world!'
-
-        with self.assertRaises(TypeError):
-            self.asyncloop.submit_job(1)
-        with self.assertRaises(TypeError):
-            self.asyncloop.submit_job(plain_function())
-        with self.assertRaises(TypeError):
-            self.asyncloop.submit_job(plain_function)
-
-    @unittest.skip('TODO')
-    def test_asyncloop_should_raise_if_job_is_plain_generator(self):
-        def plain_generator():
-            for i in range(10):
-                yield i
-
-        with self.assertRaises(TypeError):
-            fut = self.asyncloop.submit_job(plain_generator())
-            print(fut)
-
-    def test_asyncloop_should_accept_a_job_as_gen_based_coroutine(self):
-        @aio.coroutine
-        def gen_job():
-            yield from aio.sleep(1)
-            return 42
-
-        fut = self.asyncloop.submit_job(gen_job())
-        time.sleep(1)
-        result = fut.result()
-        self.assertEqual(result, 42)
-
-        @types.coroutine
-        def gen_job2():
-            yield from aio.sleep(1)
-            return 43
-
-        fut = self.asyncloop.submit_job(gen_job2())
-        time.sleep(1)
-        result = fut.result()
-        self.assertEqual(result, 43)
-
-    @unittest.skip('NOTYET')
-    def test_asyncloop_should_attach_id_to_future(self):
-        """Celery-like feature: check how Celery does it"""
-
-    @unittest.skip('NOTYET')
-    def test_asyncloop_can_get_future_by_id(self):
-        """Celery-like feature: check how Celery does it"""
-
-    @unittest.skip('TODO')
-    def test_asyncloop_can_check_it_is_idle(self):
-        pass
-
-    @unittest.skip('TODO')
-    def test_asyncloop_can_check_it_is_running(self):
-        pass
-
-    @unittest.skip('NOTYET')
-    def test_asyncloop_can_refuse_to_stop_with_pending_jobs(self):
-        pass
-
-    @unittest.skip('TODO')
-    def test_asyncloop_must_store_jobs_submitted(self):
-        pass
+from asyncloop.thread import AsyncLoop
 
 
-@unittest.skip('TODO')
-class TestAsyncLoopWithAnotherLoop(unittest.TestCase):
-    """Can distinguish AsyncLoop and plain asyncio event loop"""
-    def setUp(self):
-        self.asyncloop = AsyncLoop()
-        self.asyncloop.start()
-        time.sleep(.01)
-
-    def tearDown(self):
-        self.asyncloop.stop()
+async def job_to_wait(sleep_sec):
+    await asyncio.sleep(sleep_sec)
+    return sleep_sec
 
 
+def simple_callback(fut):
+    print('STATE: ', fut._state)
+    if fut.cancelled():
+        print('CANCELLED: ', fut)
+    elif fut.done():
+        print('DONE: ', fut)
+        print('RESULT: ', fut.result())
+
+
+def test_init_and_destroy():
+    aloop = AsyncLoop()
+    assert isinstance(aloop._event_loop, asyncio.AbstractEventLoop)
+    assert not aloop.is_alive()
+
+    aloop.start()
+    assert aloop.is_alive()
+    assert aloop._event_loop.is_running()
+
+    aloop.stop()
+    time.sleep(.01)
+    assert not aloop._event_loop.is_running()
+    assert not aloop.is_alive()
+
+
+@pytest.mark.xfail
+def test_destroy_before_stop(aloop):
+    """Currently if the program destroys asyncloop without stopping it,
+    the program blocks forever to join the thread whose event loop is running
+    forever."""
+    assert False
+
+
+def test_submit_a_job(aloop):
+    fut = aloop.submit_job(job_to_wait(.5))
+    assert isinstance(fut, concurrent.futures.Future)
+    assert fut._state == 'PENDING'
+    time.sleep(.8)
+    assert fut._state == 'FINISHED'
+    assert fut.result() == .5
+
+
+def test_submit_with_callback(aloop):
+    fut = aloop.submit_job(job_to_wait(.5), simple_callback)
+    time.sleep(.6)
+    # TODO: what to test?
+    assert fut.done()
+    assert fut.result() == .5
+
+
+def test_cancel_a_submitted_job(aloop):
+    fut = aloop.submit_job(job_to_wait(600))
+    assert not fut.done()
+    fut.cancel()
+    time.sleep(.01)
+    assert fut.cancelled()
+
+
+def test_submit_jobs(aloop):
+    jobs = (job_to_wait(i*.5) for i in range(1, 10))
+    futs = aloop.submit_jobs(jobs, simple_callback)
+    assert isinstance(futs, collections.Iterable)
+    assert all(fut.done() is False for fut in futs)
+    time.sleep(6)
+    assert all(fut.done() for fut in futs)
+
+
+def test_raise_typeerror_for_plain_function_and_constant(aloop):
+    def plain_func():
+        return 'hello world'
+
+    with pytest.raises(TypeError):
+        aloop.submit_job(plain_func())
+    with pytest.raises(TypeError):
+        aloop.submit_job(plain_func)
+
+
+@pytest.mark.xfail
+def test_raise_typeerror_for_plain_generator(aloop):
+    def plain_gen():
+        return (i for i in range(10))
+
+    with pytest.raises(TypeError):
+        aloop.submit_job(plain_gen())
+
+
+def test_accept_generator_based_coroutine(aloop):
+    @asyncio.coroutine
+    def gen_job1():
+        yield from asyncio.sleep(.5)
+        return .5
+
+    @types.coroutine
+    def gen_job2():
+        yield from asyncio.sleep(.5)
+        return .5
+
+    fut1 = aloop.submit_job(gen_job1())
+    fut2 = aloop.submit_job(gen_job2())
+    assert fut1._state == 'PENDING'
+    assert fut2._state == 'PENDING'
+    time.sleep(.6)
+    assert fut1.done()
+    assert fut1.result() == .5
+    assert fut2.done()
+    assert fut2.result() == .5
+
+@pytest.mark.xfail
+def test_check_idle_status(aloop):
+    pass
+
+
+@pytest.mark.xfail
+def test_check_running_status(aloop):
+    pass
+
+
+@pytest.mark.xfail
+def test_attach_id_to_future(aloop):
+    pass
+
+
+@pytest.mark.xfail
+def test_get_future_by_id(aloop):
+    pass
+
+
+@pytest.mark.xfail
+def test_store_submitted_jobs(aloop):
+    pass
+
+
+@pytest.mark.xfail
+def test_stop_gracefully(aloop):
+    """When the asyncloop.stop() called with pending jobs,
+    it should cancel all and then stop."""
+
+
+@pytest.mark.xfail
+def test_run_independently_with_plain_asyncio_event_loop(aloop):
+    """The asyncloop should be distinguished from other event loops"""
