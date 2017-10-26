@@ -27,7 +27,7 @@ class AsyncLoop(threading.Thread):
         not by the main thread"""
         self._event_loop.call_soon_threadsafe(self._event_loop.stop)
 
-    def submit_job(self, job_coro, callback=None):
+    def submit(self, job_coro, callback=None):
         """Initialize a job, which is a coroutine with an optional callback"""
         # if not inspect.iscoroutine(job_coro) and not aio.iscoroutine(job_coro):
         #     raise TypeError('A coroutine object is required')
@@ -39,6 +39,6 @@ class AsyncLoop(threading.Thread):
             fut.add_done_callback(callback)
         return fut
 
-    def submit_jobs(self, jobs_iter, callback=None):
+    def submit_many(self, jobs_iter, callback=None):
         """Initialize multiple jobs, and then return corresponding futures"""
-        return [self.submit_job(job, callback) for job in jobs_iter]
+        return [self.submit(job, callback) for job in jobs_iter]

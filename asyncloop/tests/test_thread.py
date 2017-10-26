@@ -46,7 +46,7 @@ def test_destroy_before_stop(aloop):
 
 
 def test_submit_a_job(aloop):
-    fut = aloop.submit_job(job_to_wait(.5))
+    fut = aloop.submit(job_to_wait(.5))
     assert isinstance(fut, concurrent.futures.Future)
     assert fut._state == 'PENDING'
     time.sleep(.8)
@@ -55,7 +55,7 @@ def test_submit_a_job(aloop):
 
 
 def test_submit_with_callback(aloop):
-    fut = aloop.submit_job(job_to_wait(.5), simple_callback)
+    fut = aloop.submit(job_to_wait(.5), simple_callback)
     time.sleep(.6)
     # TODO: what to test?
     assert fut.done()
@@ -63,7 +63,7 @@ def test_submit_with_callback(aloop):
 
 
 def test_cancel_a_submitted_job(aloop):
-    fut = aloop.submit_job(job_to_wait(600))
+    fut = aloop.submit(job_to_wait(600))
     assert not fut.done()
     fut.cancel()
     time.sleep(.01)
@@ -76,7 +76,7 @@ def test_store_futures(aloop):
     Does it need job queue? or simple list/dict? asyncio.Queue?
     Does it need separate storage depending on statuses?
     """
-    fut = aloop.submit_job(job_to_wait(600))
+    fut = aloop.submit(job_to_wait(600))
     assert len(aloop) == 1
     assert len(aloop.running) == 1
     assert len(aloop.pending) == 0
@@ -84,9 +84,9 @@ def test_store_futures(aloop):
     fut.cancel()
 
 
-def test_submit_jobs(aloop):
+def test_submit_many(aloop):
     jobs = (job_to_wait(i*.5) for i in range(1, 10))
-    futs = aloop.submit_jobs(jobs, simple_callback)
+    futs = aloop.submit_many(jobs, simple_callback)
     assert isinstance(futs, collections.Iterable)
     assert all(fut.done() is False for fut in futs)
     time.sleep(6)
@@ -96,10 +96,12 @@ def test_submit_jobs(aloop):
 @pytest.mark.xfail
 def test_control_limit(aloop):
     """WLOG, assume the limit is set as 50"""
-    aloop.submit_jobs((job_to_wait(600) for _ in range(100)))
+    futs = aloop.submit_many((job_to_wait(600) for _ in range(100)))
     assert len(aloop.running) == 50
     assert len(aloop.pending) == 50
     assert len(aloop) == 100
+    for fut in futs:
+        fut.cancel()
 
 
 def test_raise_typeerror_for_plain_function_and_constant(aloop):
@@ -107,9 +109,9 @@ def test_raise_typeerror_for_plain_function_and_constant(aloop):
         return 'hello world'
 
     with pytest.raises(TypeError):
-        aloop.submit_job(plain_func())
+        aloop.submit(plain_func())
     with pytest.raises(TypeError):
-        aloop.submit_job(plain_func)
+        aloop.submit(plain_func)
 
 
 @pytest.mark.xfail
@@ -118,7 +120,7 @@ def test_raise_typeerror_for_plain_generator(aloop):
         return (i for i in range(10))
 
     with pytest.raises(TypeError):
-        aloop.submit_job(plain_gen())
+        aloop.submit(plain_gen())
 
 
 def test_accept_generator_based_coroutine(aloop):
@@ -132,8 +134,8 @@ def test_accept_generator_based_coroutine(aloop):
         yield from asyncio.sleep(.5)
         return .5
 
-    fut1 = aloop.submit_job(gen_job1())
-    fut2 = aloop.submit_job(gen_job2())
+    fut1 = aloop.submit(gen_job1())
+    fut2 = aloop.submit(gen_job2())
     assert fut1._state == 'PENDING'
     assert fut2._state == 'PENDING'
     time.sleep(.6)
