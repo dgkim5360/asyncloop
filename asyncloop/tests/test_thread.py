@@ -70,6 +70,20 @@ def test_cancel_a_submitted_job(aloop):
     assert fut.cancelled()
 
 
+@pytest.mark.xfail
+def test_store_futures(aloop):
+    """TODO:
+    Does it need job queue? or simple list/dict? asyncio.Queue?
+    Does it need separate storage depending on statuses?
+    """
+    fut = aloop.submit_job(job_to_wait(600))
+    assert len(aloop) == 1
+    assert len(aloop.running) == 1
+    assert len(aloop.pending) == 0
+    assert aloop.jobs[fut] == fut
+    fut.cancel()
+
+
 def test_submit_jobs(aloop):
     jobs = (job_to_wait(i*.5) for i in range(1, 10))
     futs = aloop.submit_jobs(jobs, simple_callback)
@@ -77,6 +91,15 @@ def test_submit_jobs(aloop):
     assert all(fut.done() is False for fut in futs)
     time.sleep(6)
     assert all(fut.done() for fut in futs)
+
+
+@pytest.mark.xfail
+def test_control_limit(aloop):
+    """WLOG, assume the limit is set as 50"""
+    aloop.submit_jobs((job_to_wait(600) for _ in range(100)))
+    assert len(aloop.running) == 50
+    assert len(aloop.pending) == 50
+    assert len(aloop) == 100
 
 
 def test_raise_typeerror_for_plain_function_and_constant(aloop):
@@ -119,6 +142,7 @@ def test_accept_generator_based_coroutine(aloop):
     assert fut2.done()
     assert fut2.result() == .5
 
+
 @pytest.mark.xfail
 def test_check_idle_status(aloop):
     pass
@@ -131,12 +155,12 @@ def test_check_running_status(aloop):
 
 @pytest.mark.xfail
 def test_attach_id_to_future(aloop):
-    pass
+    """Is it necessary?"""
 
 
 @pytest.mark.xfail
 def test_get_future_by_id(aloop):
-    pass
+    """Is it necessary?"""
 
 
 @pytest.mark.xfail
