@@ -1,14 +1,14 @@
 import asyncio
 import collections
-import concurrent
-import pytest
 import time
 import types
+import pytest
 
 from asyncloop.thread import AsyncLoop
+from asyncloop.job import AsyncJob
 
 
-async def job_to_wait(sleep_sec):
+async def simple_job(sleep_sec):
     await asyncio.sleep(sleep_sec)
     return sleep_sec
 
@@ -46,62 +46,82 @@ def test_destroy_before_stop(aloop):
 
 
 def test_submit_a_job(aloop):
-    fut = aloop.submit(job_to_wait(.5))
-    assert isinstance(fut, concurrent.futures.Future)
-    assert fut._state == 'PENDING'
-    time.sleep(.8)
-    assert fut._state == 'FINISHED'
-    assert fut.result() == .5
+    ajob = aloop.submit(simple_job(.5))
+    assert isinstance(ajob, AsyncJob)
+    assert ajob.state == 'PENDING'
+    time.sleep(.6)
+    assert ajob.state == 'FINISHED'
+    assert ajob.result() == .5
 
 
 def test_submit_with_callback(aloop):
-    fut = aloop.submit(job_to_wait(.5), simple_callback)
+    ajob = aloop.submit(simple_job(.5), simple_callback)
     time.sleep(.6)
     # TODO: what to test?
-    assert fut.done()
-    assert fut.result() == .5
+    assert ajob.done()
+    assert ajob.result() == .5
 
 
 def test_cancel_a_submitted_job(aloop):
-    fut = aloop.submit(job_to_wait(600))
-    assert not fut.done()
-    fut.cancel()
+    ajob = aloop.submit(simple_job(600))
+    assert not ajob.done()
+    ajob.cancel()
     time.sleep(.01)
-    assert fut.cancelled()
+    assert ajob.cancelled()
 
 
-@pytest.mark.xfail
-def test_store_futures(aloop):
+def test_store_running_jobs(aloop):
     """TODO:
     Does it need job queue? or simple list/dict? asyncio.Queue?
-    Does it need separate storage depending on statuses?
+    Does it need a separate storage depending on statuses?
+
+    we might need
+    a pending queue: FIFO queue seems good (No asyncio.Queue)
+    a running list with size limit: maybe new list type needed
+
+    TODO: handle destroy warning
+    https://docs.python.org/3/library/asyncio-dev.html
     """
-    fut = aloop.submit(job_to_wait(600))
-    assert len(aloop) == 1
-    assert len(aloop.running) == 1
-    assert len(aloop.pending) == 0
-    assert aloop.jobs[fut] == fut
-    fut.cancel()
+    assert aloop.running.qsize() is 0
+    ajob1 = aloop.submit(simple_job(.5))
+    ajob2 = aloop.submit(simple_job(600))
+    assert aloop.running.qsize() is 2
+    ajob2.cancel()
+    time.sleep(.6)
+    print(ajob1, ajob1.state)
+    print(ajob2, ajob2.state)
+
+    time.sleep(.01)
+    assert aloop.running.qsize() is 0
+
+
+def test_store_pending_jobs(aloop):
+    ajobs = aloop.submit_many((simple_job(.2) for _ in range(5)))
+    assert aloop.pending.qsize() is 0
+    assert aloop.running.qsize() is 5
+    ajob = aloop.submit(simple_job(.2))
+    assert aloop.pending.qsize() is 1
+    assert aloop.running.qsize() is 5
+    time.sleep(.3)
 
 
 def test_submit_many(aloop):
-    jobs = (job_to_wait(i*.5) for i in range(1, 10))
-    futs = aloop.submit_many(jobs, simple_callback)
-    assert isinstance(futs, collections.Iterable)
-    assert all(fut.done() is False for fut in futs)
-    time.sleep(6)
-    assert all(fut.done() for fut in futs)
+    jobs = (simple_job(i*.2) for i in range(5))
+    ajobs = aloop.submit_many(jobs, simple_callback)
+    assert isinstance(ajobs, collections.Iterable)
+    assert all(ajob.done() is False for ajob in ajobs)
+    time.sleep(1)
+    assert all(ajob.done() for ajob in ajobs)
 
 
-@pytest.mark.xfail
 def test_control_limit(aloop):
-    """WLOG, assume the limit is set as 50"""
-    futs = aloop.submit_many((job_to_wait(600) for _ in range(100)))
-    assert len(aloop.running) == 50
-    assert len(aloop.pending) == 50
-    assert len(aloop) == 100
-    for fut in futs:
-        fut.cancel()
+    """WLOG, assume the limit is set as 5"""
+    ajobs = aloop.submit_many((simple_job(600) for _ in range(10)))
+    assert aloop.pending.qsize() is 5
+    assert aloop.running.qsize() is 5
+    for ajob in ajobs:
+        ajob.cancel()
+    time.sleep(.01)
 
 
 def test_raise_typeerror_for_plain_function_and_constant(aloop):
@@ -134,25 +154,25 @@ def test_accept_generator_based_coroutine(aloop):
         yield from asyncio.sleep(.5)
         return .5
 
-    fut1 = aloop.submit(gen_job1())
-    fut2 = aloop.submit(gen_job2())
-    assert fut1._state == 'PENDING'
-    assert fut2._state == 'PENDING'
+    ajob1 = aloop.submit(gen_job1())
+    ajob2 = aloop.submit(gen_job2())
+    assert ajob1.state == 'PENDING'
+    assert ajob2.state == 'PENDING'
     time.sleep(.6)
-    assert fut1.done()
-    assert fut1.result() == .5
-    assert fut2.done()
-    assert fut2.result() == .5
+    assert ajob1.done()
+    assert ajob1.result() == .5
+    assert ajob2.done()
+    assert ajob2.result() == .5
 
 
-@pytest.mark.xfail
-def test_check_idle_status(aloop):
-    pass
-
-
-@pytest.mark.xfail
 def test_check_running_status(aloop):
-    pass
+    assert aloop.is_running() is False
+    ajob = aloop.submit(simple_job(10))
+    assert aloop.is_running() is True
+
+    ajob.cancel()
+    time.sleep(.01)
+    assert aloop.is_running() is False
 
 
 @pytest.mark.xfail
@@ -165,15 +185,32 @@ def test_get_future_by_id(aloop):
     """Is it necessary?"""
 
 
-@pytest.mark.xfail
-def test_store_submitted_jobs(aloop):
-    pass
-
-
-@pytest.mark.xfail
-def test_stop_gracefully(aloop):
+def test_stop_gracefully_running_jobs():
     """When the asyncloop.stop() called with pending jobs,
     it should cancel all and then stop."""
+    aloop = AsyncLoop(maxsize=5)
+    aloop.start()
+
+    ajob = aloop.submit(simple_job(600))
+
+    aloop.stop()
+    assert ajob.state in ['CANCELLED_AND_NOTIFIED', 'CANCELLED']
+    with pytest.raises(asyncio.CancelledError):
+        ajob.result()
+
+
+def test_stop_gracefully_pending_jobs():
+    aloop = AsyncLoop(maxsize=1)
+    aloop.start()
+
+    ajob1 = aloop.submit(simple_job(600))
+    ajob2 = aloop.submit(simple_job(600))
+
+    aloop.stop()
+
+    assert ajob2.state == 'FINISHED'
+    with pytest.raises(asyncio.CancelledError):
+        ajob2.result()
 
 
 @pytest.mark.xfail
