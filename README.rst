@@ -23,6 +23,7 @@ Getting started
 ::
 
   import asyncio as aio
+  import time
 
   from asyncloop import AsyncLoop
 
@@ -43,22 +44,33 @@ Getting started
 
 
   # AsyncLoop starts
-  aloop = AsyncLoop()  # <AsyncLoop(Thread-##, initial)>
-  aloop.start()  # <AsyncLoop(Thread-##, started ##########)>
+  aloop = AsyncLoop(maxsize=5)
+  aloop.start()
 
   # Submit a job and be free to work on
   # it returns an AsyncJob object, a simple wrapper of concurrent.Future
   ajob = aloop.submit(job_to_wait(10), callback)
-  ajob  # <AsyncJob at 0x####>
 
   # After 10 seconds the callback activated
+  time.sleep(10)
   # DONE: <Future at 0x#### state=finished returned int>
   # RESULT: 10
 
   # Get a result
-  ret = ajob.result()  # 10
+  assert ajob.result() == 10
+
+  # Submit more jobs
+  ajobs = aloop.submit_many((job_to_wait(5) for _ in range(10)))
+
+  # aloop only runs 5 jobs and others pending
+  assert aloop.running.qsize() == 5
+  assert aloop.pending.qsize() == 5
+
+  # After 5 seconds so that 5 jobs done, pending job automatically starts
+  assert aloop.running.qsize() == 5
+  assert aloop.pending.qsize() == 0
 
   # You MUST stop the aloop before exit or destroy
-  aloop.stop()  # <AsyncLoop(Thread-##, stopped ##########)>
+  >>> aloop.stop()  # <AsyncLoop(Thread-##, stopped ##########)>
 
 So far, that's all.
