@@ -18,6 +18,7 @@ def callback_done(aloop, ajob):
 
 
 class AsyncJob:
+    """A simple wrapper for concurrent.Future, currently not awaitable"""
     def __init__(self, job_coro, callback=None, future=None):
         self.job_coro = job_coro
         self.callback = callback
@@ -27,17 +28,17 @@ class AsyncJob:
     def state(self):
         return self.future._state
 
-    def done(self):
-        return self.future.done()
-
     def result(self):
         return self.future.result()
+
+    def exception(self):
+        return self.future.exception()
 
     def cancel(self):
         return self.future.cancel()
 
+    def done(self):
+        return self.future.done()
+
     def cancelled(self):
         return self.future.cancelled()
-
-    def exception(self):
-        return self.future.exception()
