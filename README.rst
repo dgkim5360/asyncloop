@@ -2,7 +2,7 @@ asyncloop
 =========
 *A Celery-like event loop with `asyncio` and no dependencies*
 
-It runs an ``asyncio`` event loop in a separate thread, drives native coroutines within the loop, and then returns the future in an asynchronous manner. 
+It runs an ``asyncio`` event loop in a separate daemon thread, drives native coroutines within the event loop, and then returns the future in an asynchronous manner.
 
 Dependency
 ----------
@@ -48,8 +48,8 @@ Getting started
   aloop.start()
 
   # Submit a job and be free to work on
-  # it returns an AsyncJob object, a simple wrapper of concurrent.Future
-  ajob = aloop.submit(job_to_wait(10), callback)
+  # it returns an concurrent.futures.Future object
+  fut = aloop.submit(job_to_wait(10), callback)
 
   # After 10 seconds the callback activated
   time.sleep(10)
@@ -57,20 +57,19 @@ Getting started
   # RESULT: 10
 
   # Get a result
-  assert ajob.result() == 10
+  assert fut.result() == 10
 
+  # Now the running queue (aloop.running) is empty!
   # Submit more jobs
-  ajobs = aloop.submit_many((job_to_wait(5) for _ in range(10)))
+  aloop.submit_many((job_to_wait(5) for _ in range(10)))
 
-  # aloop only runs 5 jobs and others pending
+  # AsyncLoop only runs 5 jobs and other jobs are pending
   assert aloop.running.qsize() == 5
   assert aloop.pending.qsize() == 5
 
   # After 5 seconds so that 5 jobs done, pending job automatically starts
+  time.sleep(5)
   assert aloop.running.qsize() == 5
   assert aloop.pending.qsize() == 0
-
-  # You MUST stop the aloop before exit or destroy
-  >>> aloop.stop()  # <AsyncLoop(Thread-##, stopped ##########)>
 
 So far, that's all.
