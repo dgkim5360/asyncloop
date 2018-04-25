@@ -7,5 +7,4 @@ from asyncloop.thread import AsyncLoop
 def aloop():
     asyncloop = AsyncLoop(maxsize=5)
     asyncloop.start()
-    yield asyncloop
-    asyncloop.stop()
+    return asyncloop

@@ -7,5 +7,6 @@ __pycache__/
 /.coverage
 /.tox/
 /.cache/
+.pytest_cache
 
 *.swp

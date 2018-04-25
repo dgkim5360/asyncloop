@@ -8,8 +8,8 @@ from asyncloop.job import PendingJob
 
 class AsyncLoop(threading.Thread):
     """A thread for running the asyncio event loop in background"""
-    def __init__(self, maxsize=100):
-        super().__init__()
+    def __init__(self, maxsize=100, daemon=True):
+        super().__init__(daemon=daemon)
         self._event_loop = asyncio.new_event_loop()
         self._maxsize = maxsize
         self.pending = queue.Queue()
@@ -17,15 +17,7 @@ class AsyncLoop(threading.Thread):
 
     def run(self):
         asyncio.set_event_loop(self._event_loop)
-        try:
-            self._event_loop.run_forever()
-        finally:
-            # TODO: this finally block does not work
-            # https://stackoverflow.com/questions/42291212
-            # https://stackoverflow.com/questions/26148987
-            # https://stackoverflow.com/questions/44684898
-            # https://docs.python.org/3/library/signal.html
-            self._event_loop.close()
+        self._event_loop.run_forever()
 
     def stop(self):
         """Stop the event loop of this thread

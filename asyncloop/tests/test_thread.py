@@ -38,12 +38,21 @@ def test_init_and_destroy():
     assert not aloop.is_alive()
 
 
-@pytest.mark.xfail
-def test_destroy_before_stop(aloop):
-    """Currently if the program destroys asyncloop without stopping it,
-    the program blocks forever to join the thread whose event loop is running
-    forever."""
-    assert False
+def test_cancel_running_jobs_when_stopped():
+    aloop = AsyncLoop()
+    aloop.start()
+
+    fut1 = aloop.submit(simple_job(.2))
+    fut2 = aloop.submit(simple_job(.2))
+    fut3 = aloop.submit(simple_job(.2))
+    assert fut1._state == 'PENDING'
+    assert fut2._state == 'PENDING'
+    assert fut3._state == 'PENDING'
+
+    aloop.stop()
+    assert fut1._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
+    assert fut2._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
+    assert fut3._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
 
 
 def test_submit_a_job(aloop):
