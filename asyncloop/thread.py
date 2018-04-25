@@ -3,7 +3,7 @@ import threading
 import queue
 
 from asyncloop.set import ConfinedSet
-from asyncloop.job import callback_done, AsyncJob
+from asyncloop.job import PendingJob
 
 
 class AsyncLoop(threading.Thread):
@@ -32,43 +32,60 @@ class AsyncLoop(threading.Thread):
         The event loop should be stopped by this thread,
         not by the main thread"""
         while self.running:
-            ajob = self.running.pop()
-            ajob.cancel()
+            fut = self.running.pop()
+            fut.cancel()
             try:
-                ajob.result()
+                fut.result()
             except asyncio.CancelledError:
                 pass
-        while self.pending.qsize():
-            ajob = self.pending.get_nowait()
-            ajob.future.set_exception(asyncio.CancelledError)
         self._event_loop.call_soon_threadsafe(self._event_loop.stop)
 
     def submit(self, job_coro, callback=None):
+        """Check whether the running queue is full, and then
+        convey the coroutine to the running or pending queue appropriately.
+
+        It returns a PendingJob instance if the running queue is full,
+        a concurrent.futures.Future instance otherwise."""
         if self.running.is_full():
-            ajob = AsyncJob(job_coro, callback=callback)
-            self.pending.put_nowait(ajob)
+            pjob = PendingJob(job_coro, callback=callback)
+            self.pending.put_nowait(pjob)
+            return pjob
         else:
-            ajob = self._submit(job_coro, callback)
-            self.running.add(ajob)
-        return ajob
+            fut = self._submit(job_coro, callback)
+            self.running.add(fut)
+            return fut
+
+    def submit_many(self, jobs_iter, callback=None):
+        """Initialize multiple jobs, and then return corresponding futures.
+        This method currently supports the identical callback to all jobs."""
+        return [self.submit(job, callback) for job in jobs_iter]
+
+    def is_running(self):
+        return bool(self.running)
+
+    def callback_default(self):
+        def _clear(fut):
+            if fut.done():
+                try:
+                    self.running.remove(fut)
+                    pjob = self.pending.get_nowait()
+                except KeyError:
+                    pass
+                except queue.Empty:
+                    pass
+                else:
+                    self.submit(pjob.job_coro, pjob.callback)
+        return _clear
 
     def _submit(self, job_coro, callback=None):
-        """Initialize a job, which is a coroutine with an optional callback"""
+        """Actual execution of a coroutine with an optional callback."""
         # if not inspect.iscoroutine(job) and not asyncio.iscoroutine(job):
         #     raise TypeError('A coroutine object is required')
         fut = asyncio.run_coroutine_threadsafe(
             job_coro,
             loop=self._event_loop,
         )
-        ajob = AsyncJob(job_coro, future=fut, callback=callback)
-        fut.add_done_callback(callback_done(self, ajob))
+        fut.add_done_callback(self.callback_default())
         if callback is not None:
             fut.add_done_callback(callback)
-        return ajob
-
-    def submit_many(self, jobs_iter, callback=None):
-        """Initialize multiple jobs, and then return corresponding futures"""
-        return [self.submit(job, callback) for job in jobs_iter]
-
-    def is_running(self):
-        return bool(self.running)
+        return fut

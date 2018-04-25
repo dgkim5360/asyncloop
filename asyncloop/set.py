@@ -24,7 +24,7 @@ class ConfinedSet:
 
     def add(self, item):
         if self.qsize() == self._maxsize:
-            raise RuntimeError('The list is currently full')
+            raise RuntimeError('This set is currently full.')
         self._data.add(item)
 
     def remove(self, item):
