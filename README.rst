@@ -1,5 +1,8 @@
 asyncloop
 =========
+.. image:: https://travis-ci.org/dgkim5360/asyncloop.svg?branch=master
+    :target: https://travis-ci.org/dgkim5360/asyncloop
+
 *A Celery-like event loop with `asyncio` and no dependencies*
 
 It runs an ``asyncio`` event loop in a separate daemon thread, drives native coroutines within the event loop, and then returns the future in an asynchronous manner.
