@@ -7,7 +7,7 @@ from asyncloop.job import PendingJob
 
 
 class AsyncLoop(threading.Thread):
-    """A thread for running the asyncio event loop in background"""
+    """A thread for running the asyncio event loop in background."""
     def __init__(self, maxsize=100, daemon=True):
         super().__init__(daemon=daemon)
         self._event_loop = asyncio.new_event_loop()
@@ -20,7 +20,7 @@ class AsyncLoop(threading.Thread):
         self._event_loop.run_forever()
 
     def stop(self):
-        """Stop the event loop of this thread
+        """Stop the event loop of this thread.
         The event loop should be stopped by this thread,
         not by the main thread"""
         while self.running:

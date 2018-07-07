@@ -1,5 +1,32 @@
 class ConfinedSet:
-    """List with size limit to contain and control running jobs"""
+    """List with size limit to contain and control running jobs.
+
+    >>> instance = ConfinedSet(data=[1, 2, 3], maxsize=4)
+    >>> bool(instance)
+    True
+    >>> len(instance)
+    3
+    >>> instance.qsize()
+    3
+    >>> instance.maxsize
+    4
+    >>> instance.is_full()
+    False
+    >>> instance.add(4)
+    >>> instance.qsize()
+    4
+    >>> instance.remove(1)
+    >>> instance.qsize()
+    3
+    >>> instance.pop()
+    2
+    >>> instance.qsize()
+    2
+    >>> instance.add(10)
+    >>> instance.add(11)
+    >>> instance.is_full()
+    True
+    """
     def __init__(self, data=None, maxsize=100):
         self._maxsize = maxsize
         if data is not None and len(data) > self._maxsize:
