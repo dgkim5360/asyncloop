@@ -50,9 +50,10 @@ def test_cancel_running_jobs_when_stopped():
     assert fut3._state == 'PENDING'
 
     aloop.stop()
-    assert fut1._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
-    assert fut2._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
-    assert fut3._state in ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
+    target_states = ('CANCELLED', 'CANCELLED_AND_NOTIFIED')
+    assert fut1._state in target_states
+    assert fut2._state in target_states
+    assert fut3._state in target_states
 
 
 def test_submit_a_job(aloop):

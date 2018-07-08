@@ -21,6 +21,7 @@ class AsyncLoop(threading.Thread):
 
     def stop(self):
         """Stop the event loop of this thread.
+
         The event loop should be stopped by this thread,
         not by the main thread"""
         while self.running:
@@ -71,8 +72,6 @@ class AsyncLoop(threading.Thread):
 
     def _submit(self, job_coro, callback=None):
         """Actual execution of a coroutine with an optional callback."""
-        # if not inspect.iscoroutine(job) and not asyncio.iscoroutine(job):
-        #     raise TypeError('A coroutine object is required')
         fut = asyncio.run_coroutine_threadsafe(
             job_coro,
             loop=self._event_loop,
