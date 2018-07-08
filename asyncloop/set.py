@@ -26,6 +26,12 @@ class ConfinedSet:
     >>> instance.add(11)
     >>> instance.is_full()
     True
+    >>> for item in instance:
+    ...     print(item)
+    3
+    4
+    10
+    11
     """
     def __init__(self, data=None, maxsize=100):
         self._maxsize = maxsize
@@ -41,6 +47,9 @@ class ConfinedSet:
 
     def __len__(self):
         return len(self._data)
+
+    def __iter__(self):
+        return iter(self._data)
 
     def qsize(self):
         return len(self)
