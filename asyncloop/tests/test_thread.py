@@ -104,6 +104,14 @@ def test_store_pending_jobs(aloop):
     assert aloop.running.qsize() == 5
 
 
+def test_store_processed_jobs(aloop):
+    aloop.submit_many((simple_job(.2) for _ in range(5)))
+    assert len(aloop.done) == 0
+
+    time.sleep(.3)
+    assert len(aloop.done) == 5
+
+
 def test_submit_many(aloop):
     jobs = (simple_job(.2) for i in range(5))
     futs = aloop.submit_many(jobs, simple_callback)

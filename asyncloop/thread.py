@@ -14,6 +14,7 @@ class AsyncLoop(threading.Thread):
         self._maxsize = maxsize
         self.pending = queue.Queue()
         self.running = ConfinedSet(maxsize=self._maxsize)
+        self.done = set()
 
     def run(self):
         asyncio.set_event_loop(self._event_loop)
@@ -59,6 +60,7 @@ class AsyncLoop(threading.Thread):
     def callback_default(self):
         def _clear(fut):
             if fut.done():
+                self.done.add(fut)
                 try:
                     self.running.remove(fut)
                     pjob = self.pending.get_nowait()
