@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import time
 import queue
 
 from asyncloop.set import ConfinedSet
@@ -51,6 +52,7 @@ class AsyncLoop(threading.Thread):
 
     def submit_many(self, jobs_iter, callback=None):
         """Initialize multiple jobs, and then return corresponding futures.
+
         This method currently supports the identical callback to all jobs."""
         return [self.submit(job, callback) for job in jobs_iter]
 
@@ -82,3 +84,62 @@ class AsyncLoop(threading.Thread):
         if callback is not None:
             fut.add_done_callback(callback)
         return fut
+
+    def monitor(self):
+        """Make a curses window to show various jobs managed by the AsyncLoop.
+
+        Note1:
+        UNIX ONLY, since this method simply import `curses` module, which is
+        not available for Windows.
+
+        Note2:
+        This is an untested method, and I am not sure how to test this.
+        """
+        import curses
+
+        stdscr = curses.initscr()
+        curses.curs_set(0)
+        curses.noecho()
+        curses.cbreak()
+        width_split = curses.COLS//3-1
+        win_done = curses.newwin(curses.LINES-1, width_split, 0, 0)
+        win_running = curses.newwin(curses.LINES-1, width_split,
+                                    0, width_split+1)
+        win_pending = curses.newwin(curses.LINES-1, width_split,
+                                    0, 2*width_split+1)
+        stdscr.addstr(curses.LINES-1, 0,
+                      'Monitoring started. Press Ctrl+C to stop.')
+        stdscr.refresh()
+        win_done.addstr(0, 0, 'DONE')
+        win_pending.addstr(0, 0, 'PENDING')
+        while True:
+            try:
+                win_done.addstr(1, 0,
+                                f'{len(self.done)} jobs done')
+                list_done = list(self.done)[:curses.LINES-3]
+                for idx, job_done in enumerate(list_done, start=2):
+                    fmt_str = f'{id(job_done):x} {job_done._state}'
+                    win_done.addstr(idx, 0, fmt_str)
+                win_done.refresh()
+
+                win_running.clear()
+                win_running.addstr(0, 0, 'RUNNING')
+                win_running.addstr(1, 0,
+                                   f'{self.running.qsize()} jobs running')
+                list_running = list(self.running)[:curses.LINES-3]
+                for idx, job_running in enumerate(list_running, start=2):
+                    fmt_str = f'{id(job_running):x} {job_running._state}'
+                    win_running.addstr(idx, 0, fmt_str)
+                win_running.refresh()
+
+                win_pending.clrtoeol()
+                win_pending.addstr(1, 0,
+                                   f'{self.pending.qsize()} jobs pending')
+                win_pending.refresh()
+                time.sleep(.1)
+            except KeyboardInterrupt:
+                break
+
+        curses.nocbreak()
+        curses.echo()
+        curses.endwin()
