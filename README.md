@@ -11,6 +11,11 @@ It runs an `asyncio` event loop in a separate daemon thread, drives native corou
 <img src="https://cdn.rawgit.com/dgkim5360/asyncloop/master/examples/example-aiohttp-get.svg">
 
 ```shell
+$ docker run --name ANY_NAME \
+    -v /path/to/asyncloop/examples/nginx-staticfiles:/usr/share/nginx/html:ro \
+    -d \
+    -p 8080:80 \
+    nginx
 (venv) $ pip install aiohttp
 (venv) $ python examples/aiohttp-get.py
 ```
