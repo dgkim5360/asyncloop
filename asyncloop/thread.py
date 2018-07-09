@@ -89,7 +89,7 @@ class AsyncLoop(threading.Thread):
         """Make a curses window to show various jobs managed by the AsyncLoop.
 
         Note1:
-        UNIX ONLY, since this method simply import `curses` module, which is
+        UNIX ONLY, since this method simply imports `curses` module, which is
         not available for Windows.
 
         Note2:

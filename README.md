@@ -8,6 +8,10 @@ It runs an `asyncio` event loop in a separate daemon thread, drives native corou
 
 ### Example
 
+This example sends 6000 simple HTTP GET requests with a job queue of size 30. The `monitor` method shows the process, which may be just an eye candy.
+
+To serve the HTTP GET responses, the Nginx docker image is used.
+
 <img src="https://cdn.rawgit.com/dgkim5360/asyncloop/master/examples/example-aiohttp-get.svg">
 
 ```shell
