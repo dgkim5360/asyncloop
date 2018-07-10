@@ -3,7 +3,7 @@ import threading
 import time
 import queue
 
-from asyncloop.set import ConfinedSet
+from asyncloop.map import ConfinedMap
 from asyncloop.job import PendingJob
 
 
@@ -14,7 +14,7 @@ class AsyncLoop(threading.Thread):
         self._event_loop = asyncio.new_event_loop()
         self._maxsize = maxsize
         self.pending = queue.Queue()
-        self.running = ConfinedSet(maxsize=self._maxsize)
+        self.running = ConfinedMap(maxsize=self._maxsize)
         self.done = set()
 
     def run(self):
@@ -27,7 +27,7 @@ class AsyncLoop(threading.Thread):
         The event loop should be stopped by this thread,
         not by the main thread"""
         while self.running:
-            fut = self.running.pop()
+            fut, coro = self.running.popitem()
             fut.cancel()
             try:
                 fut.result()
@@ -47,8 +47,19 @@ class AsyncLoop(threading.Thread):
             return pjob
         else:
             fut = self._submit(job_coro, callback)
-            self.running.add(fut)
+            self.running[fut] = job_coro
             return fut
+
+    def _submit(self, job_coro, callback=None):
+        """Actual execution of a coroutine with an optional callback."""
+        fut = asyncio.run_coroutine_threadsafe(
+            job_coro,
+            loop=self._event_loop,
+        )
+        fut.add_done_callback(self.callback_default())
+        if callback is not None:
+            fut.add_done_callback(callback)
+        return fut
 
     def submit_many(self, jobs_iter, callback=None):
         """Initialize multiple jobs, and then return corresponding futures.
@@ -64,7 +75,7 @@ class AsyncLoop(threading.Thread):
             if fut.done():
                 self.done.add(fut)
                 try:
-                    self.running.remove(fut)
+                    self.running.pop(fut)
                     pjob = self.pending.get_nowait()
                 except KeyError:
                     pass
@@ -73,17 +84,6 @@ class AsyncLoop(threading.Thread):
                 else:
                     self.submit(pjob.job_coro, pjob.callback)
         return _clear
-
-    def _submit(self, job_coro, callback=None):
-        """Actual execution of a coroutine with an optional callback."""
-        fut = asyncio.run_coroutine_threadsafe(
-            job_coro,
-            loop=self._event_loop,
-        )
-        fut.add_done_callback(self.callback_default())
-        if callback is not None:
-            fut.add_done_callback(callback)
-        return fut
 
     def monitor(self):
         """Make a curses window to show various jobs managed by the AsyncLoop.

@@ -11,7 +11,7 @@ with (Path(__file__).parent / 'asyncloop' / '__init__.py').open() as f:
         raise RuntimeError('Unable to determine version.')
 
 
-with open('README.rst') as f:
+with open('README.md') as f:
     long_description = f.read()
 
 
