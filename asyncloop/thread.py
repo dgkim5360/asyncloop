@@ -96,6 +96,7 @@ class AsyncLoop(threading.Thread):
         This is an untested method, and I am not sure how to test this.
         """
         import curses
+        import inspect
 
         stdscr = curses.initscr()
         curses.curs_set(0)
@@ -117,8 +118,8 @@ class AsyncLoop(threading.Thread):
                 win_done.addstr(1, 0,
                                 f'{len(self.done)} jobs done')
                 list_done = list(self.done)[:curses.LINES-3]
-                for idx, job_done in enumerate(list_done, start=2):
-                    fmt_str = f'{id(job_done):x} {job_done._state}'
+                for idx, fut in enumerate(list_done, start=2):
+                    fmt_str = f'{id(fut):x} {fut._state}'
                     win_done.addstr(idx, 0, fmt_str)
                 win_done.refresh()
 
@@ -126,9 +127,10 @@ class AsyncLoop(threading.Thread):
                 win_running.addstr(0, 0, 'RUNNING')
                 win_running.addstr(1, 0,
                                    f'{self.running.qsize()} jobs running')
-                list_running = list(self.running)[:curses.LINES-3]
-                for idx, job_running in enumerate(list_running, start=2):
-                    fmt_str = f'{id(job_running):x} {job_running._state}'
+                list_running = list(self.running.items())[:curses.LINES-3]
+                for idx, (fut, coro) in enumerate(list_running, start=2):
+                    coro_state = inspect.getcoroutinestate(coro)
+                    fmt_str = f'{id(fut):x} {coro_state}'
                     win_running.addstr(idx, 0, fmt_str)
                 win_running.refresh()
 

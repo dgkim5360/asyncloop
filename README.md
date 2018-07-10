@@ -10,6 +10,10 @@ It runs an `asyncio` event loop in a separate daemon thread, drives native corou
 
 This example sends 6000 simple HTTP GET requests with a job queue of size 30. The `monitor` method shows the process, which may be just an eye candy.
 
+* The first column shows (id of future, state of the future), the finished jobs.
+* The second column shows (id of future, state of the corresponding coroutine), the running jobs.
+* The last column shows the number of pending jobs.
+
 To serve the HTTP GET responses, the Nginx docker image is used.
 
 <img src="https://cdn.rawgit.com/dgkim5360/asyncloop/master/examples/example-aiohttp-get.svg">
@@ -23,6 +27,8 @@ $ docker run --name ANY_NAME \
 (venv) $ pip install aiohttp
 (venv) $ python examples/aiohttp-get.py
 ```
+
+Please note that the `monitor` method does not run in Windows OS, since it uses the `curses` module, which is available only in UNIX-like OS.
 
 ### Dependency
 
