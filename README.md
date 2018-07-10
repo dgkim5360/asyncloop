@@ -16,7 +16,7 @@ This example sends 6000 simple HTTP GET requests with a job queue of size 30. Th
 
 To serve the HTTP GET responses, the Nginx docker image is used.
 
-<img src="https://cdn.rawgit.com/dgkim5360/asyncloop/master/examples/example-aiohttp-get.svg">
+<img src="https://cdn.rawgit.com/dgkim5360/asyncloop/1cd1da79/examples/example-aiohttp-get.svg">
 
 ```shell
 $ docker run --name ANY_NAME \
@@ -46,7 +46,6 @@ asyncloop$ python setup.py install
 
 ```python
 import asyncio as aio
-import time
 
 from asyncloop import AsyncLoop
 
@@ -74,15 +73,30 @@ aloop.start()
 # it returns an concurrent.futures.Future object
 fut = aloop.submit(job_to_wait(10), callback)
 
+# The job immediately goes to the running queue,
+# which is a simple dictionary with capacity.
+aloop.running
+# {
+#     <Future at 0x####>: <coroutine object job_to_wait>
+# }
+
 # After 10 seconds the callback activated
-time.sleep(10)
 # DONE: <Future at 0x#### state=finished returned int>
 # RESULT: 10
+
+# Let's check the running queue again.
+# Now the running queue (aloop.running) is empty!
+aloop.running
+# {}
+
+# We can also confirm that the job is finished as
+# the AsyncLoop instance contains the future object of finished jobs.
+aloop.done
+# {<Future at 0x#### state=finished returned int>}
 
 # Get a result
 assert fut.result() == 10
 
-# Now the running queue (aloop.running) is empty!
 # Submit more jobs
 aloop.submit_many((job_to_wait(5) for _ in range(10)))
 
@@ -90,9 +104,16 @@ aloop.submit_many((job_to_wait(5) for _ in range(10)))
 assert aloop.running.qsize() == 5
 assert aloop.pending.qsize() == 5
 
-# After 5 seconds so that 5 jobs done, pending job automatically starts
-time.sleep(5)
+# After 5 seconds so that 5 jobs done,
+# 5 pending jobs automatically start so that
+# they move into the running queue.
+assert len(aloop.done) == 6
 assert aloop.running.qsize() == 5
+assert aloop.pending.qsize() == 0
+
+# Check the last results after 10 seconds so that all jobs done.
+assert len(aloop.done) == 11
+assert aloop.running.qsize() == 0
 assert aloop.pending.qsize() == 0
 ```
 
